@@ -174,7 +174,7 @@ uint32_t post_srq_recv(struct conn_context *ctx, int num_sge,
     exit(EXIT_FAILURE);
   }
 
-  ret = ibv_post_srq_recv(ctx->id->srq, &wr, &bad_wr);
+  ret = ibv_post_srq_recv(ctx->srq, &wr, &bad_wr);
   if (ret) {
     ERROR_LOG("failed to post rdma operation, errno: %s.", strerror(errno));
     exit(EXIT_FAILURE);
