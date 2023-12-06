@@ -71,6 +71,23 @@ struct conn_context *rc_ctx = get_connection(client, sockfd);
 pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
 ```
 
+**callback**
+
+```c
+void app_on_pre_connect_cb(struct conn_context *ctx) {
+  // write your code, e.g, register mr
+}
+void app_on_connect_cb(struct conn_context *ctx) {
+  // write your code
+}
+void app_on_complete_cb(struct conn_context *ctx) {
+  // write your code to handle complete events
+}
+void app_on_disconnect_cb(struct conn_context *ctx) {
+  // write your code
+}
+```
+
 
 
 ## Contact
