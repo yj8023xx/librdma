@@ -56,7 +56,7 @@ enum mcast_role { MCAST_RECEIVER = 0, MCAST_SENDER = 1 };
 
 enum srq_flag { SRQ_DISABLE = 0, SRQ_ENABLE = 1 };
 
-enum rc_connection_state { RC_CONNECTION_TERMINATED, RC_CONNECTION_READY };
+enum connection_state { CONNECTION_TERMINATED, CONNECTION_READY };
 
 enum cq_poll_mode {
   CQ_POLL_MODE_POLLING = 0,  // default
