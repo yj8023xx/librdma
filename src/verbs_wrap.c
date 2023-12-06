@@ -158,14 +158,14 @@ void post_recv_sync(struct conn_context *ctx, int num_sge,
 }
 
 uint32_t post_srq_recv(struct conn_context *ctx, int num_sge,
-                       struct ibv_sge *sg_list) {
+                       struct ibv_sge *sg_list, uint32_t wr_id) {
   int ret;
   struct ibv_recv_wr wr;
   struct ibv_recv_wr *bad_wr;
 
   memset(&wr, 0, sizeof(wr));
 
-  wr.wr_id = next_wr_id(ctx, 0);
+  wr.wr_id = wr_id;
   wr.sg_list = sg_list;
   wr.num_sge = num_sge;
 
