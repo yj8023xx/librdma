@@ -121,10 +121,13 @@ void build_qp(struct conn_context *ctx) {
     ERROR_LOG("ibv_context is null.");
     exit(EXIT_FAILURE);
   }
-  id->pd = ibv_alloc_pd(id->verbs);
-  if (!id->pd) {
-    ERROR_LOG("failed to allocate pd, errno: %s.", strerror(errno));
-    exit(EXIT_FAILURE);
+
+  if (!ctx->srq_flag) {
+    id->pd = ibv_alloc_pd(id->verbs);
+    if (!id->pd) {
+      ERROR_LOG("failed to allocate pd, errno: %s.", strerror(errno));
+      exit(EXIT_FAILURE);
+    }
   }
 
   if (rdma_create_qp(id, id->pd, &qp_attr)) {
@@ -545,7 +548,7 @@ void set_conn_state(struct conn_context *ctx, int new_state) {
 int is_ready(struct agent_context *agent, int sockfd) {
   struct conn_context *ctx = get_connection(agent, sockfd);
   if (ctx) {
-    if (ctx->state == RC_CONNECTION_READY) {
+    if (ctx->state == CONNECTION_READY) {
       return 1;
     } else {
       return 0;
@@ -558,7 +561,7 @@ int is_ready(struct agent_context *agent, int sockfd) {
 int is_terminated(struct agent_context *agent, int sockfd) {
   struct conn_context *ctx = get_connection(agent, sockfd);
   if (ctx) {
-    if (ctx->state == RC_CONNECTION_TERMINATED) {
+    if (ctx->state == CONNECTION_TERMINATED) {
       return 1;
     } else {
       return 0;
