@@ -6,8 +6,6 @@
 #include "agent.h"
 #include "connection.h"
 #include "log.h"
-#include "message.h"
-#include "reactor.h"
 #include "timer.h"
 #include "utils.h"
 #include "verbs_wrap.h"
@@ -43,14 +41,16 @@ void app_on_pre_connect_cb(struct conn_context *ctx) {
     sge.addr = ctx->local_mr[0]->addr;
     sge.length = 13;
     sge.lkey = ctx->local_mr[0]->lkey;
-    post_srq_recv(ctx, 1, &sge);
+    // use sockfd as the wr_id in order to get the corresponding connection
+    // later
+    post_srq_recv(ctx, 1, &sge, ctx->sockfd);
   } else {
     strcpy(data_buf, "Hello World!");
   }
 }
 
 void app_on_connect_cb(struct conn_context *ctx) {
-   if (!is_server) {
+  if (!is_server) {
     struct ibv_sge sge;
     sge.addr = ctx->local_mr[0]->addr;
     sge.length = 13;
@@ -68,9 +68,10 @@ void app_on_complete_cb(struct conn_context *ctx, struct ibv_wc *wc) {
     case IBV_WC_SEND:
       break;
     case IBV_WC_RECV: {
-      // Note: this is in the callback of listen_ctx
       if (is_server) {
-        struct conn_context *server_ctx = get_connection(ctx->agent, 1);
+        // Note: this is in the callback of listen_ctx
+        // get the corresponding connection
+        struct conn_context *server_ctx = get_connection(ctx->agent, wc->wr_id);
         char *str = server_ctx->local_mr[0]->addr;
         INFO_LOG("received data: %s", str);
       }
