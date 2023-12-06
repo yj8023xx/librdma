@@ -267,7 +267,7 @@ void join_multicast_group(struct conn_context *ctx) {
 }
 
 void leave_multicast_group(struct conn_context *ctx) {
-  set_conn_state(ctx, RC_CONNECTION_TERMINATED);
+  set_conn_state(ctx, CONNECTION_TERMINATED);
 
   int ret = rdma_leave_multicast(ctx->id, ctx->mcast_addr);
   if (ret) {
@@ -325,7 +325,7 @@ void on_pre_connect(struct conn_context *ctx) {
 }
 
 void on_connect(struct conn_context *ctx) {
-  set_conn_state(ctx, RC_CONNECTION_READY);
+  set_conn_state(ctx, CONNECTION_READY);
 
   if (ctx->poll_mode == CQ_POLL_MODE_REACTOR) {
     add_event_fd(ctx->agent->reactor, EPOLLIN, ctx->comp_channel->fd, ctx,
@@ -342,7 +342,7 @@ void on_connect(struct conn_context *ctx) {
 }
 
 void on_disconnect(struct conn_context *ctx) {
-  set_conn_state(ctx, RC_CONNECTION_TERMINATED);
+  set_conn_state(ctx, CONNECTION_TERMINATED);
   DEBUG_LOG("connection terminated [sockfd:%d].", ctx->sockfd);
 
   if (ctx->on_disconnect_cb) {
