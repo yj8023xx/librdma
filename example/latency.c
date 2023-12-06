@@ -6,8 +6,6 @@
 #include "agent.h"
 #include "connection.h"
 #include "log.h"
-#include "message.h"
-#include "reactor.h"
 #include "timer.h"
 #include "utils.h"
 #include "verbs_wrap.h"
