@@ -105,7 +105,7 @@ uint32_t post_recv_async(struct conn_context *ctx, int num_sge,
 void post_recv_sync(struct conn_context *ctx, int num_sge,
                     struct ibv_sge *sg_list);
 uint32_t post_srq_recv(struct conn_context *ctx, int num_sge,
-                       struct ibv_sge *sg_list);
+                       struct ibv_sge *sg_list, uint32_t wr_id);
 
 uint32_t post_read_async(struct conn_context *ctx, int num_sge,
                          struct ibv_sge *sg_list, uint64_t remote_addr,
