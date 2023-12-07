@@ -10,9 +10,6 @@
 #include "utils.h"
 #include "verbs_wrap.h"
 
-#define MAX_INSTANCE_NUM 64
-
-struct agent_context *agents[MAX_INSTANCE_NUM];
 int is_server;
 
 void app_on_pre_connect_cb(struct conn_context *ctx) {
@@ -45,7 +42,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
   if (!is_server) {
     struct ibv_sge sge;
     sge.addr = ctx->local_mr[0]->addr;
-    sge.length = 13;
+    sge.length = 13; // the length of "Hello World!"
     sge.lkey = ctx->local_mr[0]->lkey;
     post_read_sync(ctx, 1, &sge, ctx->remote_mr[0]->addr,
                    ctx->remote_mr[0]->key);  // waiting for the results
@@ -54,28 +51,8 @@ void app_on_connect_cb(struct conn_context *ctx) {
 
     // disconnect when done
     usleep(2000);
-    rdma_disconnect(ctx->id);
+    disconnect(ctx);
   }
-}
-
-// client side
-pthread_t create_instance(int node_id, int inst_id) {
-  // create client
-  struct agent_context *client = create_client(node_id, inst_id);
-  agents[inst_id] = client;
-
-  char *dst_addr = "10.10.10.2";
-  char *port = "12345";
-  struct conn_param rc_options = {.poll_mode = CQ_POLL_MODE_POLLING,
-                                  .on_pre_connect_cb = app_on_pre_connect_cb,
-                                  .on_connect_cb = app_on_connect_cb};
-  int sockfd = add_connection_rc(client, dst_addr, port, &rc_options);
-  struct conn_context *rc_ctx = get_connection(client, sockfd);
-
-  // start run
-  pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
-
-  return rc_ctx->rdma_event_thread;
 }
 
 int main(int argc, char *argv[]) {
@@ -115,30 +92,27 @@ int main(int argc, char *argv[]) {
     int listen_fd = server_listen(server, src_addr, port);
     struct conn_context *listen_ctx = get_connection(server, listen_fd);
 
-    pthread_create(&listen_ctx->rdma_event_thread, NULL, server_loop,
-                   listen_ctx);
-    pthread_join(listen_ctx->rdma_event_thread, NULL);
-
-    // free resourses
-    destroy_agent(server);
+    start_listen(listen_ctx);
   } else {  // client side
-    int num_instances = 1;
-    pthread_t thread[num_instances];
-    int node_id = 1;
+    // create client
+    struct agent_context *client = create_client(1, 1);
 
-    // create client instance
-    for (int i = 0; i < num_instances; i++) {
-      thread[i] = create_instance(node_id, i);
-    }
+    char *dst_addr = "10.10.10.2";
+    char *port = "12345";
+    struct conn_param rc_options = {.poll_mode = CQ_POLL_MODE_POLLING,
+                                    .on_pre_connect_cb = app_on_pre_connect_cb,
+                                    .on_connect_cb = app_on_connect_cb};
+    int sockfd = add_connection_rc(client, dst_addr, port, &rc_options);
+    struct conn_context *rc_ctx = get_connection(client, sockfd);
 
-    for (int i = 0; i < num_instances; i++) {
-      pthread_join(thread[i], NULL);
-    }
+    // start run
+    pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
+
+    // waiting for thread to finish executing
+    pthread_join(rc_ctx->rdma_event_thread, NULL);
 
     // free resources
-    for (int i = 0; i < num_instances; i++) {
-      destroy_agent(agents[i]);
-    }
+    destroy_agent(client);
   }
 
   return 0;
