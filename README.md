@@ -26,7 +26,7 @@ To start using librdma in your project, follow these simple steps:
 3. **Integrate into Your Project:**
    Link against the librdma library in your project and include the necessary headers
 
-If you want to generate debugging information, please remove the annotation(`RDMA_FLAGS += -DDEBUG`) in Makefile
+If you want to generate debugging information, please add a flag in the Makefile: `RDMA_FLAGS += -DDEBUG`
 
 ## Example
 
