@@ -45,7 +45,6 @@ char *src_addr = "10.10.10.2";
 char *port = "12345";
 int listen_fd = server_listen(server, src_addr, port);
 struct conn_context *listen_ctx = get_connection(server, listen_fd);
-struct rdma_event_channel *listen_channel = listen_ctx->id->channel;
 
 // start listening
 pthread_create(&listen_ctx->rdma_event_thread, NULL, server_loop,
