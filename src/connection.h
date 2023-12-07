@@ -75,8 +75,6 @@ int get_next_connection(struct agent_context *agent, int cur);
 char *get_connection_ip(struct agent_context *agent, int sockfd);
 int get_connection_qpn(struct agent_context *agent, int sockfd);
 uint32_t get_last_compl_wr_id(struct conn_context *ctx, int send);
-void bind_fd_to_qp(struct agent_context *agent, int qpn, int sockfd);
-int get_fd_by_qp(struct agent_context *agent, int qpn);
 
 // state
 void set_conn_state(struct conn_context *ctx, int new_state);
