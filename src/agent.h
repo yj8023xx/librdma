@@ -24,7 +24,7 @@ void destroy_agent(struct agent_context *agent);
 
 /**
  * common
-*/
+ */
 int add_connection_rc(struct agent_context *agent, char *dst_addr, char *port,
                       struct conn_param *options);
 
@@ -34,7 +34,7 @@ int add_connection_ud(struct agent_context *agent, char *bind_addr,
 
 /**
  * server side
-*/
+ */
 int server_listen(struct agent_context *server, char *src_addr, char *port);
 
 int accept_connection(struct agent_context *server, struct rdma_cm_id *id,
@@ -54,6 +54,10 @@ void *client_loop(void *data);
  * data: conn_context
  */
 void *server_loop(void *data);
+
+void start_listen(struct conn_context *listen_ctx);
+
+void disconnect(struct conn_context *ctx);
 
 /**
  * agent callback
