@@ -78,9 +78,6 @@ struct agent_context {
   // mapping between fd and rdma_cm_id
   struct rdma_cm_id **conn_id_map;
 
-  // mapping between qpn and sockfd
-  struct qp_fd_entry *qp_fd_hh;
-
   // server conn param
   struct conn_param *options;
 };
@@ -186,12 +183,6 @@ struct conn_context {
   app_conn_cb_fn on_connect_cb;
   app_disc_cb_fn on_disconnect_cb;
   app_compl_cb_fn on_complete_cb;
-};
-
-struct qp_fd_entry {
-  int qpn;
-  int sockfd;
-  UT_hash_handle hh;
 };
 
 /**
