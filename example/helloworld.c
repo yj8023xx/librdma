@@ -92,6 +92,7 @@ int main(int argc, char *argv[]) {
     int listen_fd = server_listen(server, src_addr, port);
     struct conn_context *listen_ctx = get_connection(server, listen_fd);
 
+    // start listening
     start_listen(listen_ctx);
   } else {  // client side
     // create client
