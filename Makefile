@@ -13,6 +13,7 @@ CC = gcc -g -D_GNU_SOURCE -O2 # C compiler
 
 INCLUDE := $(CURDIR)/include
 
+#RDMA_FLAGS += -DDEBUG
 RDMA_FLAGS += -fvisibility=default
 
 LDFLAGS += -Wl,-rpath=/usr/local/lib -L/usr/local/lib -Wl,-rpath=/usr/lib -L/usr/lib
