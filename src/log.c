@@ -8,7 +8,11 @@
 
 #define LOG_TIME_FMT "%04d/%02d/%02d-%02d:%02d:%02d.%05ld"
 
+#ifdef DEBUG
+enum log_level global_log_level = LOG_LEVEL_DEBUG;
+#else
 enum log_level global_log_level = LOG_LEVEL_INFO;
+#endif
 
 const char *const level_str[] = {"ERROR", "WARN",  "INFO",
                                  "DEBUG", "TRACE", "MID"};
