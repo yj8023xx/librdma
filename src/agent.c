@@ -273,6 +273,10 @@ void leave_multicast_group(struct conn_context *ctx) {
     ERROR_LOG("failed to leave multicast group [sockfd:%d].", ctx->sockfd);
     exit(EXIT_FAILURE);
   }
+
+  on_disconnect(ctx);
+  destroy_connection(ctx);
+  
   DEBUG_LOG("left multicast group.");
 }
 
@@ -315,6 +319,10 @@ void *server_loop(void *data) {
   DEBUG_LOG("exited server_loop.");
   return 0;
 }
+
+void start_listen(struct conn_context *listen_ctx) { server_loop(listen_ctx); }
+
+void disconnect(struct conn_context *ctx) { rdma_disconnect(ctx->id); }
 
 void on_pre_connect(struct conn_context *ctx) {
   if (ctx->on_pre_connect_cb) {
