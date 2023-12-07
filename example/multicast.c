@@ -10,9 +10,6 @@
 #include "utils.h"
 #include "verbs_wrap.h"
 
-#define MAX_INSTANCE_NUM 64
-
-struct agent_context *agents[MAX_INSTANCE_NUM];
 int is_server;
 int done = 0;
 
@@ -90,26 +87,6 @@ void app_on_complete_cb(struct conn_context *ctx, struct ibv_wc *wc) {
   }
 }
 
-// client side
-struct conn_context *create_instance(int node_id, int inst_id) {
-  // create client
-  struct agent_context *client = create_client(node_id, inst_id);
-  agents[inst_id] = client;
-
-  char *mcast_addr = "10.10.10.2";
-  struct conn_param mcast_options = {.poll_mode = CQ_POLL_MODE_POLLING,
-                                     .on_pre_connect_cb = app_on_pre_connect_cb,
-                                     .on_connect_cb = app_on_connect_cb,
-                                     .on_complete_cb = app_on_complete_cb};
-  int mcast_fd = add_connection_ud(client, NULL, mcast_addr, MCAST_RECEIVER,
-                                   &mcast_options);
-  struct conn_context *mcast_ctx = get_connection(client, mcast_fd);
-
-  // start run
-  join_multicast_group(mcast_ctx);
-  return mcast_ctx;
-}
-
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     // if no command-line arguments are provided, give a prompt
@@ -157,17 +134,23 @@ int main(int argc, char *argv[]) {
     leave_multicast_group(mcast_ctx);
 
     // free resourses
-    destroy_connection(mcast_ctx);
     destroy_agent(server);
   } else {  // client side
-    int num_instances = 1;
-    struct conn_context *mcast_ctxs[num_instances];
-    int node_id = 1;
+    // create client
+    struct agent_context *client = create_client(1, 1);
 
-    // create client instance
-    for (int i = 0; i < num_instances; i++) {
-      mcast_ctxs[i] = create_instance(node_id, i);
-    }
+    char *mcast_addr = "10.10.10.2";
+    struct conn_param mcast_options = {
+        .poll_mode = CQ_POLL_MODE_POLLING,
+        .on_pre_connect_cb = app_on_pre_connect_cb,
+        .on_connect_cb = app_on_connect_cb,
+        .on_complete_cb = app_on_complete_cb};
+    int mcast_fd = add_connection_ud(client, NULL, mcast_addr, MCAST_RECEIVER,
+                                     &mcast_options);
+    struct conn_context *mcast_ctx = get_connection(client, mcast_fd);
+
+    // start run
+    join_multicast_group(mcast_ctx);
 
     // wait for results
     while (!done) {
@@ -175,15 +158,10 @@ int main(int argc, char *argv[]) {
     }
 
     // leave multicast group
-    for (int i = 0; i < num_instances; i++) {
-      leave_multicast_group(mcast_ctxs[i]);
-      destroy_connection(mcast_ctxs[i]);
-    }
+    leave_multicast_group(mcast_ctx);
 
     // free resources
-    for (int i = 0; i < num_instances; i++) {
-      destroy_agent(agents[i]);
-    }
+    destroy_agent(client);
   }
 
   return 0;
