@@ -141,7 +141,8 @@ int main(int argc, char *argv[]) {
         .on_complete_cb = app_on_complete_cb};
     // setup conn param
     server->options = &accept_options;
-
+    
+    // start listening
     start_listen(listen_ctx);
   } else {  // client side
     // create client
