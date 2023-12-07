@@ -1,8 +1,6 @@
 #ifndef RDMA_CONNECTION_H
 #define RDMA_CONNECTION_H
 
-#define __USE_XOPEN2K
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <infiniband/verbs.h>
