@@ -19,8 +19,6 @@ struct agent_context *create_agent(int node_id, int agent_id, int node_role) {
   agent->conn_id_map = (struct rdma_cm_id **)calloc(
       MAX_CONNECTIONS, sizeof(struct rdma_cm_id *));
 
-  agent->qp_fd_hh = NULL;
-
   return agent;
 }
 
@@ -36,6 +34,7 @@ struct agent_context *create_client(int node_id, int agent_id) {
 }
 
 void destroy_agent(struct agent_context *agent) {
+  destroy_reactor(agent->reactor);
   free(agent->reactor);
   free(agent->conn_bitmap);
   free(agent->conn_id_map);
