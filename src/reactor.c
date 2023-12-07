@@ -1,5 +1,40 @@
 #include "reactor.h"
 
+int init_reactor(struct reactor_context *ctx) {
+  int ret = 0;
+
+  ctx->event_bitmap = (int *)calloc(EVENT_SIZE, sizeof(int));
+  ctx->event_map =
+      (struct event_data **)calloc(EVENT_SIZE, sizeof(struct event_data *));
+  ctx->epoll_fd = epoll_create(EPOLL_SIZE);
+  if (ctx->epoll_fd < 0) {
+    ERROR_LOG("failed to create epoll fd.");
+    return -1;
+  }
+
+  ret = pthread_create(&ctx->epoll_thread, NULL, run_reactor, ctx);
+  if (ret) {
+    ERROR_LOG("failed to create pthread.");
+    close(ctx->epoll_fd);
+  }
+
+  return ret;
+}
+
+void destroy_reactor(struct reactor_context *ctx) {
+  DEBUG_LOG("destroying reactor.");
+  ctx->stop = true;
+  // free resources
+  for (int i = 0; i < EVENT_SIZE; i++) {
+    if (ctx->event_bitmap[i]) {
+      free(ctx->event_map[i]);
+    }
+  }
+  free(ctx->event_bitmap);
+  free(ctx->event_map);
+  close(ctx->epoll_fd);
+}
+
 /**
  * data: reactor_context
  */
@@ -28,23 +63,6 @@ void *run_reactor(void *data) {
   return NULL;
 }
 
-int init_reactor(struct reactor_context *ctx) {
-  int ret = 0;
-  ctx->epoll_fd = epoll_create(EPOLL_SIZE);
-  if (ctx->epoll_fd < 0) {
-    ERROR_LOG("failed to create epoll fd.");
-    return -1;
-  }
-
-  ret = pthread_create(&ctx->epoll_thread, NULL, run_reactor, ctx);
-  if (ret) {
-    ERROR_LOG("failed to create pthread.");
-    close(ctx->epoll_fd);
-  }
-
-  return ret;
-}
-
 int add_event_fd(struct reactor_context *ctx, int events, int fd, void *data,
                  event_handler event_handler) {
   struct epoll_event ee;
@@ -60,6 +78,11 @@ int add_event_fd(struct reactor_context *ctx, int events, int fd, void *data,
   event_data_ptr->fd = fd;
   event_data_ptr->data_ptr = data;
   event_data_ptr->event_handler = event_handler;
+
+  // save for releasing later
+  int index = find_first_empty_bit(ctx->event_bitmap, EVENT_SIZE);
+  ctx->event_bitmap[index] = 1;
+  ctx->event_map[index] = event_data_ptr;
 
   memset(&ee, 0, sizeof(ee));
   ee.events = events;
@@ -77,8 +100,7 @@ int add_event_fd(struct reactor_context *ctx, int events, int fd, void *data,
 }
 
 int del_event_fd(struct reactor_context *ctx, int fd) {
-  int ret = 0;
-  ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+  int ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
   if (ret < 0) {
     ERROR_LOG("failed to del event fd.");
     exit(EXIT_FAILURE);
