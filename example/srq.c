@@ -145,7 +145,6 @@ int main(int argc, char *argv[]) {
     char *port = "12345";
     int listen_fd = server_listen(server, src_addr, port);
     struct conn_context *listen_ctx = get_connection(server, listen_fd);
-    struct rdma_event_channel *listen_channel = listen_ctx->id->channel;
 
     // use the listen_fd to create srq since it is already setup
     build_srq(listen_ctx);
