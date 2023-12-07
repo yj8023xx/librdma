@@ -114,7 +114,6 @@ int main(int argc, char *argv[]) {
     char *port = "12345";
     int listen_fd = server_listen(server, src_addr, port);
     struct conn_context *listen_ctx = get_connection(server, listen_fd);
-    struct rdma_event_channel *listen_channel = listen_ctx->id->channel;
 
     pthread_create(&listen_ctx->rdma_event_thread, NULL, server_loop,
                    listen_ctx);
