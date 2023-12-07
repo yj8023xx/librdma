@@ -45,29 +45,33 @@ char *src_addr = "10.10.10.2";
 char *port = "12345";
 int listen_fd = server_listen(server, src_addr, port);
 struct conn_context *listen_ctx = get_connection(server, listen_fd);
-
+    
 // start listening
-pthread_create(&listen_ctx->rdma_event_thread, NULL, server_loop,
-               listen_ctx);
+start_listen(listen_ctx);
 ```
 
 **client side**
 
 ```c
 // create client
-struct agent_context *client = create_client(node_id, inst_id);
-agents[inst_id] = client;
+struct agent_context *client = create_client(1, 1);
 
 char *dst_addr = "10.10.10.2";
 char *port = "12345";
 struct conn_param rc_options = {.poll_mode = CQ_POLL_MODE_POLLING,
-                              .on_pre_connect_cb = app_on_pre_connect_cb,
-                              .on_connect_cb = app_on_connect_cb};
+                                .on_pre_connect_cb = app_on_pre_connect_cb,
+                                .on_connect_cb = app_on_connect_cb};
 int sockfd = add_connection_rc(client, dst_addr, port, &rc_options);
 struct conn_context *rc_ctx = get_connection(client, sockfd);
 
 // start run
 pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
+
+// waiting for thread to finish executing
+pthread_join(rc_ctx->rdma_event_thread, NULL);
+
+// free resources
+destroy_agent(client);
 ```
 
 **callback**
