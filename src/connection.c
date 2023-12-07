@@ -56,20 +56,18 @@ int setup_connection(struct conn_context *ctx) {
 
 void build_cq_channel(struct conn_context *ctx) {
   int ret;
-  ctx->cq = ibv_create_cq(ctx->id->verbs, MAX_CQE, NULL, ctx->comp_channel,
-                          0); /* cqe=10 is arbitrary */
-
-  if (!ctx->cq) {
-    ERROR_LOG("failed to create CQ, errno: %s", strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-
   // create completion queue channel
   ctx->comp_channel = ibv_create_comp_channel(ctx->id->verbs);
-
   if (!ctx->comp_channel) {
     ERROR_LOG("failed to create competion channel, errno: %s.",
               strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+
+  ctx->cq = ibv_create_cq(ctx->id->verbs, MAX_CQE, NULL, ctx->comp_channel,
+                          0); /* cqe=10 is arbitrary */
+  if (!ctx->cq) {
+    ERROR_LOG("failed to create CQ, errno: %s", strerror(errno));
     exit(EXIT_FAILURE);
   }
 
@@ -141,8 +139,6 @@ void build_qp(struct conn_context *ctx) {
       ctx->sockfd, ctx->id->qp->qp_num, qp_type_to_str(ctx->id->qp->qp_type),
       qp_attr.cap.max_send_wr, qp_attr.cap.max_recv_wr,
       qp_attr.cap.max_send_sge, qp_attr.cap.max_recv_sge);
-
-  bind_fd_to_qp(ctx->agent, ctx->id->qp->qp_num, ctx->sockfd);
 }
 
 void build_srq(struct conn_context *ctx) {
@@ -515,24 +511,6 @@ uint32_t get_last_compl_wr_id(struct conn_context *ctx, int send) {
   } else {
     return ctx->last_recv_compl;
   }
-}
-
-void bind_fd_to_qp(struct agent_context *agent, int qpn, int sockfd) {
-  struct qp_fd_entry *entry = malloc(sizeof(struct qp_fd_entry));
-  entry->qpn = qpn;
-  entry->sockfd = sockfd;
-  HASH_ADD_INT(agent->qp_fd_hh, qpn, entry);
-
-  DEBUG_LOG("bound fd #%d to qpn #%d.", sockfd, qpn);
-}
-
-int get_fd_by_qp(struct agent_context *agent, int qpn) {
-  struct qp_fd_entry *entry = NULL;
-  HASH_FIND_INT(agent->qp_fd_hh, qpn, entry);
-  if (!entry) {
-    return -1;
-  }
-  return entry->sockfd;
 }
 
 void set_conn_state(struct conn_context *ctx, int new_state) {
