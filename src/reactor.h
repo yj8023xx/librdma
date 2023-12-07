@@ -7,6 +7,7 @@
 #include "common.h"
 
 #define EPOLL_SIZE 1024
+#define EVENT_SIZE 1024
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -22,6 +23,8 @@ struct event_data {
 
 struct reactor_context {
   int epoll_fd;
+  int *event_bitmap;
+  struct event_data **event_map;
   bool stop;
   pthread_t epoll_thread;
 };
@@ -30,6 +33,11 @@ struct reactor_context {
  * init reactor
  */
 int init_reactor(struct reactor_context *ctx);
+
+/**
+ * destroy reactor
+*/
+void destroy_reactor(struct reactor_context *ctx);
 
 /**
  * run reactor
