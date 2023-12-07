@@ -266,7 +266,7 @@ void join_multicast_group(struct conn_context *ctx) {
 }
 
 void leave_multicast_group(struct conn_context *ctx) {
-  set_conn_state(ctx, CONNECTION_TERMINATED);
+  on_disconnect(ctx);
 
   int ret = rdma_leave_multicast(ctx->id, ctx->mcast_addr);
   if (ret) {
@@ -274,7 +274,6 @@ void leave_multicast_group(struct conn_context *ctx) {
     exit(EXIT_FAILURE);
   }
 
-  on_disconnect(ctx);
   destroy_connection(ctx);
   
   DEBUG_LOG("left multicast group.");
