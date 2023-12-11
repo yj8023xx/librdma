@@ -75,8 +75,8 @@ struct agent_context {
 
   // indicates whether fds is available
   int *conn_bitmap;
-  // mapping between fd and rdma_cm_id
-  struct rdma_cm_id **conn_id_map;
+  // mapping between fd and conn context
+  struct conn_context **conn_fd_map;
 
   // server conn param
   struct conn_param *options;
