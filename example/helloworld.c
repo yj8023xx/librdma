@@ -42,7 +42,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
   if (!is_server) {
     struct ibv_sge sge;
     sge.addr = ctx->local_mr[0]->addr;
-    sge.length = 13; // the length of "Hello World!"
+    sge.length = 13;  // the length of "Hello World!"
     sge.lkey = ctx->local_mr[0]->lkey;
     post_read_sync(ctx, 1, &sge, ctx->remote_mr[0]->addr,
                    ctx->remote_mr[0]->key);  // waiting for the results
@@ -89,8 +89,7 @@ int main(int argc, char *argv[]) {
     // sockfd for listening
     char *src_addr = "10.10.10.2";
     char *port = "12345";
-    int listen_fd = server_listen(server, src_addr, port);
-    struct conn_context *listen_ctx = get_connection(server, listen_fd);
+    struct conn_context *listen_ctx = server_listen(server, src_addr, port);
 
     // start listening
     start_listen(listen_ctx);
@@ -103,14 +102,11 @@ int main(int argc, char *argv[]) {
     struct conn_param rc_options = {.poll_mode = CQ_POLL_MODE_POLLING,
                                     .on_pre_connect_cb = app_on_pre_connect_cb,
                                     .on_connect_cb = app_on_connect_cb};
-    int sockfd = add_connection_rc(client, dst_addr, port, &rc_options);
-    struct conn_context *rc_ctx = get_connection(client, sockfd);
+    struct conn_context *rc_ctx =
+        add_connection_rc(client, dst_addr, port, &rc_options);
 
-    // start run
-    pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
-
-    // waiting for thread to finish executing
-    pthread_join(rc_ctx->rdma_event_thread, NULL);
+    // connect to server
+    start_connect(rc_ctx);
 
     // free resources
     destroy_agent(client);
