@@ -34,9 +34,10 @@ static inline char *qp_type_to_str(int qp_type) {
 }
 
 // connection management
-void init_connection(struct agent_context *agent, struct rdma_cm_id *id,
-                     int sockfd, struct conn_param *options);
-int setup_connection(struct conn_context *ctx);
+struct conn_context *init_connection(struct agent_context *agent,
+                                     struct rdma_cm_id *id, int sockfd,
+                                     struct conn_param *options);
+void setup_connection(struct conn_context *ctx);
 
 // build cq, qp, srq
 void build_cq_channel(struct conn_context *ctx);
@@ -48,7 +49,8 @@ void build_srq(struct conn_context *ctx);
 void build_private_data(struct conn_context *ctx, struct private_data *data);
 void build_rc_param(struct conn_context *ctx, struct rdma_conn_param *param,
                     struct private_data *data);
-int setup_rc_param(struct conn_context *ctx, struct rdma_conn_param *cm_params);
+void setup_rc_param(struct conn_context *ctx,
+                    struct rdma_conn_param *cm_params);
 
 // connect event handling
 void rdma_event_loop(struct conn_context *ctx, int exit_on_handle,
