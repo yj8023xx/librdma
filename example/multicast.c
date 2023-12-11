@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
     // start run
     join_multicast_group(mcast_ctx);
 
-    // wait for results
+    // waiting for results
     while (!done) {
       // wait
     }
