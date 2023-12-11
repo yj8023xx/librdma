@@ -14,8 +14,9 @@ extern inline int find_bitmap_weight(int bitmap[], int n);
 extern inline struct sockaddr_in *copy_ipv4_sockaddr(
     struct sockaddr_storage *in);
 
-void init_connection(struct agent_context *agent, struct rdma_cm_id *id,
-                     int sockfd, struct conn_param *options) {
+struct conn_context *init_connection(struct agent_context *agent,
+                                     struct rdma_cm_id *id, int sockfd,
+                                     struct conn_param *options) {
   struct conn_context *ctx =
       (struct conn_context *)calloc(1, sizeof(struct conn_context));
   ctx->mcast_addr = (struct sockaddr *)malloc(sizeof(struct sockaddr));
@@ -47,9 +48,11 @@ void init_connection(struct agent_context *agent, struct rdma_cm_id *id,
   ctx->agent = agent;
   ctx->sockfd = sockfd;
   ctx->is_server = agent->is_server;
+
+  return ctx;
 }
 
-int setup_connection(struct conn_context *ctx) {
+void setup_connection(struct conn_context *ctx) {
   build_cq_channel(ctx);
   build_qp(ctx);
 }
@@ -194,7 +197,8 @@ void build_rc_param(struct conn_context *ctx, struct rdma_conn_param *rc_param,
   }
 }
 
-int setup_rc_param(struct conn_context *ctx, struct rdma_conn_param *rc_param) {
+void setup_rc_param(struct conn_context *ctx,
+                    struct rdma_conn_param *rc_param) {
   struct private_data *data = NULL;
 
   if (rc_param) {
@@ -317,7 +321,6 @@ void rdma_event_loop(struct conn_context *ctx, int exit_on_handle,
       on_connect(event_copy.id->context);
 
       if (exit_on_connect) {
-        on_disconnect(event_copy.id->context);
         break;
       }
     } else if (event_copy.event ==
