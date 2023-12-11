@@ -4,8 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_KEY_SIZE 64
-
 enum msg_type { MSG_MR, MSG_CUSTOM };
 
 struct message {
