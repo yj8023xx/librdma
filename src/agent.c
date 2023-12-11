@@ -16,8 +16,8 @@ struct agent_context *create_agent(int node_id, int agent_id, int node_role) {
 
   // connection resources
   agent->conn_bitmap = (int *)calloc(MAX_CONNECTIONS, sizeof(int));
-  agent->conn_id_map = (struct rdma_cm_id **)calloc(
-      MAX_CONNECTIONS, sizeof(struct rdma_cm_id *));
+  agent->conn_fd_map = (struct conn_context **)calloc(
+      MAX_CONNECTIONS, sizeof(struct conn_context *));
 
   return agent;
 }
@@ -37,7 +37,7 @@ void destroy_agent(struct agent_context *agent) {
   destroy_reactor(agent->reactor);
   free(agent->reactor);
   free(agent->conn_bitmap);
-  free(agent->conn_id_map);
+  free(agent->conn_fd_map);
   free(agent);
 
   DEBUG_LOG("destroyed agent.");
@@ -89,10 +89,10 @@ struct conn_context *add_connection_rc(struct agent_context *agent,
 
   rdma_freeaddrinfo(rai);
 
-  agent->conn_bitmap[sockfd] = 1;
-  agent->conn_id_map[sockfd] = id;
-
   struct conn_context *ctx = init_connection(agent, id, sockfd, options);
+
+  agent->conn_bitmap[sockfd] = 1;
+  agent->conn_fd_map[sockfd] = ctx;
 
   DEBUG_LOG("created reliable connection to %s:%s on sockfd #%d.", dst_addr,
             port, sockfd);
@@ -164,10 +164,10 @@ struct conn_context *add_connection_ud(struct agent_context *agent,
     exit(EXIT_FAILURE);
   }
 
-  agent->conn_bitmap[sockfd] = 1;
-  agent->conn_id_map[sockfd] = id;
-
   struct conn_context *ctx = init_connection(agent, id, sockfd, options);
+
+  agent->conn_bitmap[sockfd] = 1;
+  agent->conn_fd_map[sockfd] = ctx;
 
   memcpy(ctx->mcast_addr, mcast_rai->ai_dst_addr, sizeof(struct sockaddr));
   ctx->is_sender = is_sender;
@@ -199,10 +199,10 @@ struct conn_context *accept_connection(struct agent_context *server,
     exit(EXIT_FAILURE);
   }
 
-  server->conn_bitmap[sockfd] = 1;
-  server->conn_id_map[sockfd] = id;
-
   struct conn_context *ctx = init_connection(server, id, sockfd, options);
+
+  server->conn_bitmap[sockfd] = 1;
+  server->conn_fd_map[sockfd] = ctx;
 
   DEBUG_LOG("acceptted reliable connection on sockfd #%d.", sockfd);
 
@@ -255,10 +255,10 @@ struct conn_context *server_listen(struct agent_context *server, char *src_addr,
 
   rdma_freeaddrinfo(rai);
 
-  server->conn_bitmap[listen_fd] = 1;
-  server->conn_id_map[listen_fd] = id;
-
   struct conn_context *ctx = init_connection(server, id, listen_fd, NULL);
+
+  server->conn_bitmap[listen_fd] = 1;
+  server->conn_fd_map[listen_fd] = ctx;
 
   return ctx;
 }
