@@ -73,7 +73,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
     for (int i = 0; i < num; i++) {
       struct timespec start = timer_start();
       post_send_async(ctx, 1, &sge, 0);
-      spin_till_completion(ctx, i + 1, 0);  // waiting for the recv event
+      spin_till_completion(ctx, i + 1, 0);  // waiting for the recv events
       long duration = timer_end(start);
       if (i >= drop) {
         tot += duration;
@@ -154,9 +154,8 @@ int main(int argc, char *argv[]) {
     // sockfd for listening
     char *src_addr = "10.10.10.2";
     char *port = "12345";
-    int listen_fd = server_listen(server, src_addr, port);
-    struct conn_context *listen_ctx = get_connection(server, listen_fd);
-    
+    struct conn_context *listen_ctx = server_listen(server, src_addr, port);
+
     // start listening
     start_listen(listen_ctx);
   } else {  // client side
@@ -169,14 +168,11 @@ int main(int argc, char *argv[]) {
                                     .on_pre_connect_cb = app_on_pre_connect_cb,
                                     .on_connect_cb = app_on_connect_cb,
                                     .on_complete_cb = app_on_complete_cb};
-    int sockfd = add_connection_rc(client, dst_addr, port, &rc_options);
-    struct conn_context *rc_ctx = get_connection(client, sockfd);
+    struct conn_context *rc_ctx =
+        add_connection_rc(client, dst_addr, port, &rc_options);
 
-    // start run
-    pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
-
-    // waiting for thread to finish executing
-    pthread_join(rc_ctx->rdma_event_thread, NULL);
+    // connect to server
+    start_connect(rc_ctx);
 
     // free resources
     destroy_agent(client);
