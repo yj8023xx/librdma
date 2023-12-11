@@ -459,7 +459,7 @@ struct conn_context *get_connection(struct agent_context *agent, int sockfd) {
     exit(EXIT_FAILURE);
   }
   if (agent->conn_bitmap[sockfd]) {
-    return agent->conn_id_map[sockfd]->context;
+    return agent->conn_fd_map[sockfd];
   } else {
     return NULL;
   }
@@ -487,8 +487,8 @@ int get_next_connection(struct agent_context *agent, int cur) {
 
 char *get_connection_ip(struct agent_context *agent, int sockfd) {
   if (get_connection(agent, sockfd)) {
-    struct sockaddr_in *addr_in =
-        copy_ipv4_sockaddr(&agent->conn_id_map[sockfd]->route.addr.dst_storage);
+    struct sockaddr_in *addr_in = copy_ipv4_sockaddr(
+        &agent->conn_fd_map[sockfd]->id->route.addr.dst_storage);
     char *s = malloc(sizeof(char) * INET_ADDRSTRLEN);
     s = inet_ntoa(addr_in->sin_addr);
     return s;
@@ -565,7 +565,7 @@ void destroy_connection(struct conn_context *ctx) {
 
   DEBUG_LOG("clearing connection resources for socket #%d.", sockfd);
   agent->conn_bitmap[sockfd] = 0;
-  agent->conn_id_map[sockfd] = NULL;
+  agent->conn_fd_map[sockfd] = NULL;
 
   ctx->running = 0;
 
