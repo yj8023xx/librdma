@@ -121,9 +121,8 @@ int main(int argc, char *argv[]) {
         .on_pre_connect_cb = app_on_pre_connect_cb,
         .on_connect_cb = app_on_connect_cb,
         .on_complete_cb = app_on_complete_cb};
-    int mcast_fd = add_connection_ud(server, NULL, mcast_addr, MCAST_SENDER,
-                                     &mcast_options);
-    struct conn_context *mcast_ctx = get_connection(server, mcast_fd);
+    struct conn_context *mcast_ctx = add_connection_ud(
+        server, NULL, mcast_addr, MCAST_SENDER, &mcast_options);
 
     // start run
     join_multicast_group(mcast_ctx);
@@ -145,9 +144,8 @@ int main(int argc, char *argv[]) {
         .on_pre_connect_cb = app_on_pre_connect_cb,
         .on_connect_cb = app_on_connect_cb,
         .on_complete_cb = app_on_complete_cb};
-    int mcast_fd = add_connection_ud(client, NULL, mcast_addr, MCAST_RECEIVER,
-                                     &mcast_options);
-    struct conn_context *mcast_ctx = get_connection(client, mcast_fd);
+    struct conn_context *mcast_ctx = add_connection_ud(
+        client, NULL, mcast_addr, MCAST_RECEIVER, &mcast_options);
 
     // start run
     join_multicast_group(mcast_ctx);
