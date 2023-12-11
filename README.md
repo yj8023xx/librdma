@@ -45,9 +45,8 @@ struct agent_context *server = create_server(1, 1, &accept_options);
 // sockfd for listening
 char *src_addr = "10.10.10.2";
 char *port = "12345";
-int listen_fd = server_listen(server, src_addr, port);
-struct conn_context *listen_ctx = get_connection(server, listen_fd);
-    
+struct conn_context *listen_ctx = server_listen(server, src_addr, port);
+
 // start listening
 start_listen(listen_ctx);
 ```
@@ -63,14 +62,11 @@ char *port = "12345";
 struct conn_param rc_options = {.poll_mode = CQ_POLL_MODE_POLLING,
                                 .on_pre_connect_cb = app_on_pre_connect_cb,
                                 .on_connect_cb = app_on_connect_cb};
-int sockfd = add_connection_rc(client, dst_addr, port, &rc_options);
-struct conn_context *rc_ctx = get_connection(client, sockfd);
+struct conn_context *rc_ctx =
+    add_connection_rc(client, dst_addr, port, &rc_options);
 
-// start run
-pthread_create(&rc_ctx->rdma_event_thread, NULL, client_loop, rc_ctx);
-
-// waiting for thread to finish executing
-pthread_join(rc_ctx->rdma_event_thread, NULL);
+// connect to server
+start_connect(rc_ctx);
 
 // free resources
 destroy_agent(client);
