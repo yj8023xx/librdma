@@ -32,7 +32,7 @@ If you want to generate debug information, please add a flag in the Makefile: `R
 
 ## Example
 
-**server side**
+**Server Side**
 
 ```c
 // setup server accept conn param
@@ -51,7 +51,7 @@ struct conn_context *listen_ctx = server_listen(server, src_addr, port);
 start_listen(listen_ctx);
 ```
 
-**client side**
+**Client Side**
 
 ```c
 // create client
@@ -72,7 +72,7 @@ start_connect(rc_ctx);
 destroy_agent(client);
 ```
 
-**callback**
+**Callback**
 
 ```c
 void app_on_pre_connect_cb(struct conn_context *ctx) {
