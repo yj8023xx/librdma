@@ -43,8 +43,9 @@ void destroy_agent(struct agent_context *agent) {
   DEBUG_LOG("destroyed agent.");
 }
 
-int add_connection_rc(struct agent_context *agent, char *dst_addr, char *port,
-                      struct conn_param *options) {
+struct conn_context *add_connection_rc(struct agent_context *agent,
+                                       char *dst_addr, char *port,
+                                       struct conn_param *options) {
   DEBUG_LOG("attempting to add reliable connection to %s:%s.", dst_addr, port);
 
   int sockfd =
@@ -91,17 +92,18 @@ int add_connection_rc(struct agent_context *agent, char *dst_addr, char *port,
   agent->conn_bitmap[sockfd] = 1;
   agent->conn_id_map[sockfd] = id;
 
-  init_connection(agent, id, sockfd, options);
+  struct conn_context *ctx = init_connection(agent, id, sockfd, options);
 
   DEBUG_LOG("created reliable connection to %s:%s on sockfd #%d.", dst_addr,
             port, sockfd);
 
-  return sockfd;
+  return ctx;
 }
 
-int add_connection_ud(struct agent_context *agent, char *bind_addr,
-                      char *mcast_addr, int is_sender,
-                      struct conn_param *options) {
+struct conn_context *add_connection_ud(struct agent_context *agent,
+                                       char *bind_addr, char *mcast_addr,
+                                       int is_sender,
+                                       struct conn_param *options) {
   DEBUG_LOG("attempting to add unreliable connection to %s.", mcast_addr);
 
   int sockfd =
@@ -165,9 +167,8 @@ int add_connection_ud(struct agent_context *agent, char *bind_addr,
   agent->conn_bitmap[sockfd] = 1;
   agent->conn_id_map[sockfd] = id;
 
-  init_connection(agent, id, sockfd, options);
+  struct conn_context *ctx = init_connection(agent, id, sockfd, options);
 
-  struct conn_context *ctx = (struct conn_context *)id->context;
   memcpy(ctx->mcast_addr, mcast_rai->ai_dst_addr, sizeof(struct sockaddr));
   ctx->is_sender = is_sender;
 
@@ -177,14 +178,15 @@ int add_connection_ud(struct agent_context *agent, char *bind_addr,
   DEBUG_LOG("created unreliable connection to %s on sockfd #%d.", mcast_addr,
             sockfd);
 
-  return sockfd;
+  return ctx;
 }
 
 /**
  * server side
  */
-int accept_connection(struct agent_context *server, struct rdma_cm_id *id,
-                      struct conn_param *options) {
+struct conn_context *accept_connection(struct agent_context *server,
+                                       struct rdma_cm_id *id,
+                                       struct conn_param *options) {
   DEBUG_LOG("attempting to accept reliable connection.");
 
   int sockfd =
@@ -200,14 +202,15 @@ int accept_connection(struct agent_context *server, struct rdma_cm_id *id,
   server->conn_bitmap[sockfd] = 1;
   server->conn_id_map[sockfd] = id;
 
-  init_connection(server, id, sockfd, options);
+  struct conn_context *ctx = init_connection(server, id, sockfd, options);
 
   DEBUG_LOG("acceptted reliable connection on sockfd #%d.", sockfd);
 
-  return sockfd;
+  return ctx;
 }
 
-int server_listen(struct agent_context *server, char *src_addr, char *port) {
+struct conn_context *server_listen(struct agent_context *server, char *src_addr,
+                                   char *port) {
   DEBUG_LOG("attempting to listen on port %s for connections.", port);
 
   int listen_fd =
@@ -255,9 +258,9 @@ int server_listen(struct agent_context *server, char *src_addr, char *port) {
   server->conn_bitmap[listen_fd] = 1;
   server->conn_id_map[listen_fd] = id;
 
-  init_connection(server, id, listen_fd, NULL);
+  struct conn_context *ctx = init_connection(server, id, listen_fd, NULL);
 
-  return listen_fd;
+  return ctx;
 }
 
 void join_multicast_group(struct conn_context *ctx) {
@@ -275,7 +278,7 @@ void leave_multicast_group(struct conn_context *ctx) {
   }
 
   destroy_connection(ctx);
-  
+
   DEBUG_LOG("left multicast group.");
 }
 
@@ -321,7 +324,22 @@ void *server_loop(void *data) {
 
 void start_listen(struct conn_context *listen_ctx) { server_loop(listen_ctx); }
 
-void disconnect(struct conn_context *ctx) { rdma_disconnect(ctx->id); }
+void start_connect(struct conn_context *ctx) {
+  struct rdma_event_channel *ec = ctx->id->channel;
+  rdma_event_loop(ctx, 0, 1, 1);  // exit upon connect
+
+  // destroy resources
+  rdma_destroy_event_channel(
+      ec);  // all rdma_cm_id's associated with the event channel must be
+            // destroyed, and all returned events must be acked before calling
+            // this function
+}
+
+void disconnect(struct conn_context *ctx) {
+  on_disconnect(ctx);
+  rdma_disconnect(ctx->id);
+  destroy_connection(ctx);
+}
 
 void on_pre_connect(struct conn_context *ctx) {
   if (ctx->on_pre_connect_cb) {
