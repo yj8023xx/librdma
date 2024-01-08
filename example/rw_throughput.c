@@ -59,9 +59,8 @@ void app_on_connect_cb(struct conn_context *ctx) {
         post_write_sync(ctx, 1, &sge, ctx->remote_mr[0]->addr,
                         ctx->remote_mr[0]->key);
       }
-
+      
       thread_count[ctx->sockfd]++;
-
       diff = timer_end(start) / 1000;  // us
     }
 
