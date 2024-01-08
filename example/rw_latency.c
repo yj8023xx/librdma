@@ -13,6 +13,7 @@
 #define REQUEST_NUM 1000
 
 int is_server;
+int is_read;
 double drop_rate = 0.1;
 
 void app_on_pre_connect_cb(struct conn_context *ctx) {
@@ -50,16 +51,22 @@ void app_on_connect_cb(struct conn_context *ctx) {
     long tot = 0;
     for (int i = 0; i < num; i++) {
       struct timespec start = timer_start();
-      post_read_sync(ctx, 1, &sge, ctx->remote_mr[0]->addr,
-                     ctx->remote_mr[0]->key);  // waiting for the results
+      if (is_read) {
+        post_read_sync(ctx, 1, &sge, ctx->remote_mr[0]->addr,
+                       ctx->remote_mr[0]->key);  // waiting for the results
+      } else {
+        post_write_sync(ctx, 1, &sge, ctx->remote_mr[0]->addr,
+                        ctx->remote_mr[0]->key);
+      }
       long duration = timer_end(start);
       if (i >= drop) {
         tot += duration;
       }
     }
 
-    INFO_LOG("RDMA Read average duration: %lu usec [times:%d data_size:%dB].",
-             tot / (num - drop) / 1000, num, sge.length);
+    INFO_LOG("RDMA %s average duration: %lu usec [times:%d data_size:%dB].",
+             is_read ? "Read" : "Write", tot / (num - drop) / 1000, num,
+             sge.length);
 
     // disconnect when done
     usleep(2000);
@@ -72,7 +79,7 @@ int main(int argc, char *argv[]) {
     // if no command-line arguments are provided, give a prompt
     ERROR_LOG("Please provide an argument 's' for server or 'c' for client.");
     return 0;
-  } else if (argc == 2) {
+  } else if (argc >= 2) {
     // if there is one command-line argument
     if (strcmp(argv[1], "s") == 0) {
       is_server = 1;
@@ -83,6 +90,24 @@ int main(int argc, char *argv[]) {
     } else {
       ERROR_LOG("Invalid argument: %s.", argv[1]);
       return 0;
+    }
+    if (!is_server) {  // client side
+      is_read = 1;
+      if (argc >= 3) {
+        if (strcmp(argv[2], "r") == 0) {
+          is_read = 1;
+        } else if (strcmp(argv[2], "w") == 0) {
+          is_read = 0;
+        } else {
+          ERROR_LOG("Invalid argument: %s.", argv[2]);
+          return 0;
+        }
+      }
+      if (is_read) {
+        INFO_LOG("Test RDMA Read latency.");
+      } else {
+        INFO_LOG("Test RDMA Write latency.");
+      }
     }
   } else {
     // if the number of arguments is incorrect
