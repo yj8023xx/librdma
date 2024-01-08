@@ -15,6 +15,7 @@ struct agent_context *create_agent(int node_id, int agent_id, int node_role) {
   init_reactor(agent->reactor);
 
   // connection resources
+  pthread_mutex_init(&agent->mu, NULL);
   agent->conn_bitmap = (int *)calloc(MAX_CONNECTIONS, sizeof(int));
   agent->conn_fd_map = (struct conn_context **)calloc(
       MAX_CONNECTIONS, sizeof(struct conn_context *));
@@ -35,6 +36,7 @@ struct agent_context *create_client(int node_id, int agent_id) {
 
 void destroy_agent(struct agent_context *agent) {
   destroy_reactor(agent->reactor);
+  pthread_mutex_destroy(&agent->mu);
   free(agent->reactor);
   free(agent->conn_bitmap);
   free(agent->conn_fd_map);
@@ -43,11 +45,8 @@ void destroy_agent(struct agent_context *agent) {
   DEBUG_LOG("destroyed agent.");
 }
 
-struct conn_context *add_connection_rc(struct agent_context *agent,
-                                       char *dst_addr, char *port,
-                                       struct conn_param *options) {
-  DEBUG_LOG("attempting to add reliable connection to %s:%s.", dst_addr, port);
-
+int get_sockfd(struct agent_context *agent) {
+  pthread_mutex_lock(&agent->mu);
   int sockfd =
       find_first_empty_bit_and_set(agent->conn_bitmap, MAX_CONNECTIONS);
 
@@ -57,6 +56,22 @@ struct conn_context *add_connection_rc(struct agent_context *agent,
         "MAX_CONNECTIONS.");
     exit(EXIT_FAILURE);
   }
+  pthread_mutex_unlock(&agent->mu);
+  return sockfd;
+}
+
+void free_sockfd(struct agent_context *agent, int sockfd) {
+  pthread_mutex_lock(&agent->mu);
+  DEBUG_LOG("clearing connection resources for socket #%d.", sockfd);
+  agent->conn_bitmap[sockfd] = 0;
+  agent->conn_fd_map[sockfd] = NULL;
+  pthread_mutex_unlock(&agent->mu);
+}
+
+struct conn_context *add_connection_rc(struct agent_context *agent,
+                                       char *dst_addr, char *port,
+                                       struct conn_param *options) {
+  DEBUG_LOG("attempting to add reliable connection to %s:%s.", dst_addr, port);
 
   int ret;
   struct rdma_addrinfo *rai;
@@ -89,6 +104,7 @@ struct conn_context *add_connection_rc(struct agent_context *agent,
 
   rdma_freeaddrinfo(rai);
 
+  int sockfd = get_sockfd(agent);
   struct conn_context *ctx = init_connection(agent, id, sockfd, options);
 
   agent->conn_bitmap[sockfd] = 1;
@@ -105,16 +121,6 @@ struct conn_context *add_connection_ud(struct agent_context *agent,
                                        int is_sender,
                                        struct conn_param *options) {
   DEBUG_LOG("attempting to add unreliable connection to %s.", mcast_addr);
-
-  int sockfd =
-      find_first_empty_bit_and_set(agent->conn_bitmap, MAX_CONNECTIONS);
-
-  if (sockfd < 0) {
-    ERROR_LOG(
-        "can't open new connection; number of open sockets == "
-        "MAX_CONNECTIONS.");
-    exit(EXIT_FAILURE);
-  }
 
   int ret;
   struct rdma_addrinfo *bind_rai = NULL;
@@ -164,6 +170,7 @@ struct conn_context *add_connection_ud(struct agent_context *agent,
     exit(EXIT_FAILURE);
   }
 
+  int sockfd = get_sockfd(agent);
   struct conn_context *ctx = init_connection(agent, id, sockfd, options);
 
   agent->conn_bitmap[sockfd] = 1;
@@ -189,16 +196,7 @@ struct conn_context *accept_connection(struct agent_context *server,
                                        struct conn_param *options) {
   DEBUG_LOG("attempting to accept reliable connection.");
 
-  int sockfd =
-      find_first_empty_bit_and_set(server->conn_bitmap, MAX_CONNECTIONS);
-
-  if (sockfd < 0) {
-    ERROR_LOG(
-        "can't open new connection; number of open sockets == "
-        "MAX_CONNECTIONS.");
-    exit(EXIT_FAILURE);
-  }
-
+  int sockfd = get_sockfd(server);
   struct conn_context *ctx = init_connection(server, id, sockfd, options);
 
   server->conn_bitmap[sockfd] = 1;
@@ -212,16 +210,6 @@ struct conn_context *accept_connection(struct agent_context *server,
 struct conn_context *server_listen(struct agent_context *server, char *src_addr,
                                    char *port) {
   DEBUG_LOG("attempting to listen on port %s for connections.", port);
-
-  int listen_fd =
-      find_first_empty_bit_and_set(server->conn_bitmap, MAX_CONNECTIONS);
-
-  if (listen_fd < 0) {
-    ERROR_LOG(
-        "can't open new connection; number of open sockets == "
-        "MAX_CONNECTIONS.");
-    exit(EXIT_FAILURE);
-  }
 
   int ret;
   struct rdma_addrinfo *rai;
@@ -255,6 +243,7 @@ struct conn_context *server_listen(struct agent_context *server, char *src_addr,
 
   rdma_freeaddrinfo(rai);
 
+  int listen_fd = get_sockfd(server);
   struct conn_context *ctx = init_connection(server, id, listen_fd, NULL);
 
   server->conn_bitmap[listen_fd] = 1;
@@ -287,14 +276,7 @@ void leave_multicast_group(struct conn_context *ctx) {
  */
 void *client_loop(void *data) {
   struct conn_context *ctx = (struct conn_context *)data;
-  struct rdma_event_channel *ec = ctx->id->channel;
   rdma_event_loop(ctx, 0, 0, 1);  // exit upon disconnect
-
-  // destroy resources
-  rdma_destroy_event_channel(
-      ec);  // all rdma_cm_id's associated with the event channel must be
-            // destroyed, and all returned events must be acked before calling
-            // this function
 
   DEBUG_LOG("exited client_loop.");
   return NULL;
@@ -325,20 +307,19 @@ void *server_loop(void *data) {
 void start_listen(struct conn_context *listen_ctx) { server_loop(listen_ctx); }
 
 void start_connect(struct conn_context *ctx) {
-  struct rdma_event_channel *ec = ctx->id->channel;
   rdma_event_loop(ctx, 0, 1, 1);  // exit upon connect
-
-  // destroy resources
-  rdma_destroy_event_channel(
-      ec);  // all rdma_cm_id's associated with the event channel must be
-            // destroyed, and all returned events must be acked before calling
-            // this function
 }
 
 void disconnect(struct conn_context *ctx) {
   on_disconnect(ctx);
   rdma_disconnect(ctx->id);
+  // destroy resources
+  struct rdma_event_channel *ec = ctx->id->channel;
   destroy_connection(ctx);
+  rdma_destroy_event_channel(
+      ec);  // Note: all rdma_cm_id's associated with the
+            // event channel must be destroyed, and all returned events must be
+            // acked before calling this function
 }
 
 void on_pre_connect(struct conn_context *ctx) {

@@ -63,6 +63,9 @@ void *server_loop(void *data);
 void start_listen(struct conn_context *listen_ctx);
 void start_connect(struct conn_context *ctx);
 
+/**
+ * only used on client side
+ */
 void disconnect(struct conn_context *ctx);
 
 /**
