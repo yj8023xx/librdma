@@ -27,6 +27,7 @@ struct reactor_context {
   struct event_data **event_map;
   bool stop;
   pthread_t epoll_thread;
+  pthread_mutex_t mu;
 };
 
 /**

@@ -12,6 +12,8 @@ int init_reactor(struct reactor_context *ctx) {
     return -1;
   }
 
+  pthread_mutex_init(&ctx->mu, NULL);
+
   ret = pthread_create(&ctx->epoll_thread, NULL, run_reactor, ctx);
   if (ret) {
     ERROR_LOG("failed to create pthread.");
@@ -63,6 +65,35 @@ void *run_reactor(void *data) {
   return NULL;
 }
 
+/**
+ * thread safe
+ */
+void store_event(struct reactor_context *ctx, struct event_data *data) {
+  pthread_mutex_lock(&ctx->mu);
+  int index = find_first_empty_bit(ctx->event_bitmap, EVENT_SIZE);
+  ctx->event_bitmap[index] = 1;
+  ctx->event_map[index] = data;
+  pthread_mutex_unlock(&ctx->mu);
+}
+
+/**
+ * thread safe
+ */
+void free_event(struct reactor_context *ctx, int fd) {
+  pthread_mutex_lock(&ctx->mu);
+  for (int i = 0; i < EVENT_SIZE; i++) {
+    if (ctx->event_bitmap[i]) {
+      if (ctx->event_map[i]->fd == fd) {
+        free(ctx->event_map[i]);
+        ctx->event_bitmap[i] = 0;
+        ctx->event_map[i] = NULL;
+        break;
+      }
+    }
+  }
+  pthread_mutex_unlock(&ctx->mu);
+}
+
 int add_event_fd(struct reactor_context *ctx, int events, int fd, void *data,
                  event_handler event_handler) {
   struct epoll_event ee;
@@ -79,10 +110,8 @@ int add_event_fd(struct reactor_context *ctx, int events, int fd, void *data,
   event_data_ptr->data_ptr = data;
   event_data_ptr->event_handler = event_handler;
 
-  // save for releasing later
-  int index = find_first_empty_bit(ctx->event_bitmap, EVENT_SIZE);
-  ctx->event_bitmap[index] = 1;
-  ctx->event_map[index] = event_data_ptr;
+  // save for free later
+  store_event(ctx, event_data_ptr);
 
   memset(&ee, 0, sizeof(ee));
   ee.events = events;
@@ -105,6 +134,8 @@ int del_event_fd(struct reactor_context *ctx, int fd) {
     ERROR_LOG("failed to del event fd.");
     exit(EXIT_FAILURE);
   }
+
+  free_event(ctx, fd);
 
   DEBUG_LOG("successfully deleted event fd.");
 
