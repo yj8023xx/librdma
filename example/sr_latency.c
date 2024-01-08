@@ -79,6 +79,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
         tot += duration;
       }
     }
+    
     INFO_LOG(
         "RDMA SEND/RECV average duration: %lu usec [times:%d data_size:%dB].",
         tot / (num - drop) / 1000, num, sge.length);
