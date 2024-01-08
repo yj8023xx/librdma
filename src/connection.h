@@ -78,8 +78,8 @@ uint32_t get_last_compl_wr_id(struct conn_context *ctx, int send);
 
 // state
 void set_conn_state(struct conn_context *ctx, int new_state);
-int is_ready(struct agent_context *agent, int sockfd);
-int is_terminated(struct agent_context *agent, int sockfd);
+int is_ready(struct conn_context *ctx);
+int is_terminated(struct conn_context *ctx);
 
 // remove
 void destroy_connection(struct conn_context *ctx);

@@ -1,5 +1,6 @@
 #include "connection.h"
 
+#include "reactor.h"
 #include "verbs_wrap.h"
 
 extern inline int cmp_counters(uint32_t a, uint32_t b);
@@ -402,12 +403,18 @@ void poll_cq_once(struct conn_context *ctx, struct ibv_wc *wc) {
 
 // func for polling
 void *poll_cq_loop(void *data) {
+  pthread_detach(pthread_self());  // When a detached thread terminates, its
+                                   // resources are automatically released back
+                                   // to the system without the need for another
+                                   // thread to join with the terminated thread
   struct conn_context *ctx = (struct conn_context *)data;
   struct ibv_wc wc;
   ctx->running = 1;
+  ctx->stopped = 0;
   do {
     poll_cq_once(ctx, &wc);
   } while (ctx->running);
+  ctx->stopped = 1;
   return NULL;
 }
 
@@ -526,8 +533,7 @@ void set_conn_state(struct conn_context *ctx, int new_state) {
   ctx->state = new_state;
 }
 
-int is_ready(struct agent_context *agent, int sockfd) {
-  struct conn_context *ctx = get_connection(agent, sockfd);
+int is_ready(struct conn_context *ctx) {
   if (ctx) {
     if (ctx->state == CONNECTION_READY) {
       return 1;
@@ -539,8 +545,7 @@ int is_ready(struct agent_context *agent, int sockfd) {
   }
 }
 
-int is_terminated(struct agent_context *agent, int sockfd) {
-  struct conn_context *ctx = get_connection(agent, sockfd);
+int is_terminated(struct conn_context *ctx) {
   if (ctx) {
     if (ctx->state == CONNECTION_TERMINATED) {
       return 1;
@@ -556,16 +561,14 @@ void destroy_connection(struct conn_context *ctx) {
   int sockfd = ctx->sockfd;
   struct agent_context *agent = ctx->agent;
 
-  if (!is_terminated(agent, sockfd)) {
+  if (!is_terminated(ctx)) {
     ERROR_LOG(
         "can't clear resources for non-terminated connection [sockfd:%d].",
         sockfd);
     exit(EXIT_FAILURE);
   }
 
-  DEBUG_LOG("clearing connection resources for socket #%d.", sockfd);
-  agent->conn_bitmap[sockfd] = 0;
-  agent->conn_fd_map[sockfd] = NULL;
+  free_sockfd(agent, sockfd);
 
   ctx->running = 0;
 
@@ -581,11 +584,17 @@ void destroy_connection(struct conn_context *ctx) {
 
   if (ctx->cq) {
     DEBUG_LOG("destroying cq.");
+    while (ctx->poll_mode == CQ_POLL_MODE_POLLING && !ctx->stopped) {
+      // wait
+    }
     ibv_destroy_cq(ctx->cq);
   }
 
   if (ctx->comp_channel) {
     DEBUG_LOG("destroying comp channel.");
+    if (ctx->poll_mode == CQ_POLL_MODE_REACTOR) {
+      del_event_fd(agent->reactor, ctx->comp_channel->fd);
+    }
     ibv_destroy_comp_channel(ctx->comp_channel);
   }
 
