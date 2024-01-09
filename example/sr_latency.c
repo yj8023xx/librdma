@@ -14,6 +14,7 @@
 
 int is_server;
 double drop_rate = 0.1;
+int data_size = 1024; // B
 
 void app_on_pre_connect_cb(struct conn_context *ctx) {
   void *send_buf, *recv_buf;
@@ -49,7 +50,7 @@ void app_on_pre_connect_cb(struct conn_context *ctx) {
   struct ibv_sge sge;
   sge.addr = ctx->local_mr[1]->addr;
   if (is_server) {  // server side
-    sge.length = 1024;
+    sge.length = data_size;
   } else {  // client side
     sge.length = 1;
   }
@@ -64,7 +65,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
   if (!is_server) {  // client side
     struct ibv_sge sge;
     sge.addr = ctx->local_mr[0]->addr;
-    sge.length = 1024;
+    sge.length = data_size;
     sge.lkey = ctx->local_mr[0]->lkey;
 
     int num = REQUEST_NUM;
