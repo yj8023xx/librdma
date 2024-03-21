@@ -74,6 +74,7 @@ struct agent_context {
   struct reactor_context *reactor;
 
   // indicates whether fds is available
+  pthread_mutex_t mu;
   int *conn_bitmap;
   // mapping between fd and conn context
   struct conn_context **conn_fd_map;
@@ -150,6 +151,7 @@ struct conn_context {
   /* polling mechanism */
   // background cq polling thread
   pthread_t cq_poll_thread;
+  int stopped;
 
   // control whether cq_poll_thread execute
   int running;
