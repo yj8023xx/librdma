@@ -15,6 +15,7 @@
 int is_server;
 int is_read;
 double drop_rate = 0.1;
+int data_size = 1024; // B
 
 void app_on_pre_connect_cb(struct conn_context *ctx) {
   void *data_buf;
@@ -43,7 +44,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
   if (!is_server) {
     struct ibv_sge sge;
     sge.addr = ctx->local_mr[0]->addr;
-    sge.length = 1024;
+    sge.length = data_size;
     sge.lkey = ctx->local_mr[0]->lkey;
 
     int num = REQUEST_NUM;
@@ -66,7 +67,7 @@ void app_on_connect_cb(struct conn_context *ctx) {
 
     INFO_LOG("RDMA %s average duration: %lu usec [times:%d data_size:%dB].",
              is_read ? "Read" : "Write", tot / (num - drop) / 1000, num,
-             sge.length);
+             data_size);
 
     // disconnect when done
     usleep(2000);
